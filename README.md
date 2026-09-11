@@ -2,10 +2,6 @@
 
 把《星露谷物语》(Stardew Valley) 的游戏内日历数据接入 LLM 的 [MCP](https://modelcontextprotocol.io) 服务器。
 
-## 效果
-<img width="1380" height="1310" alt="image" src="https://github.com/user-attachments/assets/c793ac52-0a7f-4071-8aa2-a761ca6c20c0" />
-
-
 它本身不读写游戏内存，而是作为一层 **MCP ⇄ HTTP 代理**：MCP 客户端（如 Claude Code）通过 stdio 调用工具，服务器再把请求转发给游戏内 mod **[HelloStardew](https://github.com/HeptaneL/HelloStardew)** 暴露的本地 HTTP 桥接服务。
 
 ```
@@ -20,6 +16,9 @@ HelloStardew mod  (游戏内, HttpBridge)
         ▼
 Stardew Valley 存档
 ```
+
+## 效果
+<img width="1380" height="1310" alt="image" src="https://github.com/user-attachments/assets/c793ac52-0a7f-4071-8aa2-a761ca6c20c0" />
 
 ## 功能
 
