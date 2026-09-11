@@ -17,6 +17,9 @@ HelloStardew mod  (游戏内, HttpBridge)
 Stardew Valley 存档
 ```
 
+## 效果
+<img width="1380" height="1310" alt="image" src="https://github.com/user-attachments/assets/c793ac52-0a7f-4071-8aa2-a761ca6c20c0" />
+
 ## 功能
 
 通过 mod 的 HTTP API 提供以下只读能力：
