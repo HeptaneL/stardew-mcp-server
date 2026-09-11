@@ -166,5 +166,4 @@ def start() -> None:
     mcp.run(transport="stdio")
 
 if __name__ == "__main__":
-    print("Stardew MCP SERVER START")
     start()
