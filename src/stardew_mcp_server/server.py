@@ -1,4 +1,4 @@
-"""MCP server exposing the HelloStardew calendar HTTP API as tools.
+"""MCP server exposing the HelloStardew game-state HTTP API as tools.
 
 The mod (see ``StardewMods/HelloStardew/Bridge/HttpBridge.cs``) listens on
 ``http://127.0.0.1:8788`` by default and answers every endpoint with the same
@@ -24,6 +24,14 @@ DEFAULT_TIMEOUT = 5.0
 
 Season = Literal["spring", "summer", "fall", "winter"]
 DayOfSeason = Annotated[int, Field(ge=1, le=28, description="Day of the season (1-28)")]
+RecentEventDays = Annotated[
+    int,
+    Field(ge=0, le=28, description="How far before and after today to look, in days"),
+]
+NpcName = Annotated[
+    str,
+    Field(description="Villager name. Internal or display name both work, case-insensitively."),
+]
 
 mcp = MCPServer("stardew_valley")
 
@@ -159,6 +167,45 @@ async def get_month_calendar(season: Season | None = None) -> dict[str, Any]:
     """获取整个季节（28 天）的日历，不传 season 则默认为当前季节。"""
     params = {"season": season} if season else None
     return await _get("/calendar", params=params)
+
+
+@mcp.tool()
+async def get_household() -> dict[str, Any]:
+    """获取玩家住所信息：农夫名字、农场名字、配偶名字、宠物名字与类型、孩子名字。"""
+    return await _get("/household")
+
+
+@mcp.tool()
+async def get_relationship(npc: NpcName | None = None) -> dict[str, Any]:
+    """查询玩家与村民的关系（好感度、心数、是否结婚等）。
+
+    Args:
+        npc: 村民名字，如 ``Haley``。不传则返回玩家已认识的所有村民，按好感度从高到低排序。
+    """
+    params = {"npc": npc} if npc else None
+    return await _get("/relationship", params=params)
+
+
+@mcp.tool()
+async def get_current_state() -> dict[str, Any]:
+    """获取玩家当前状态快照：时间、地点、金钱、体力、生命、天气、技能等级、背包内容。"""
+    return await _get("/state")
+
+
+@mcp.tool()
+async def get_recent_activity() -> dict[str, Any]:
+    """获取玩家最近（最近 3 个游戏日）做过的事：对话、送礼、钓鱼、出货、升级、消费等。"""
+    return await _get("/activity/recent")
+
+
+@mcp.tool()
+async def get_recent_events(days: RecentEventDays = 3) -> dict[str, Any]:
+    """获取今天前后若干天的日历事件（节日 / 被动节日 / 钓鱼赛 / 书商 / 生日）。
+
+    Args:
+        days: 今天往前、往后各看多少天，0 表示只看今天，最大 28。默认 3。
+    """
+    return await _get("/events/recent", {"days": days})
 
 
 def start() -> None:
