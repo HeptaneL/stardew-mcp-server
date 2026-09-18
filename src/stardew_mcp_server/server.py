@@ -261,6 +261,32 @@ async def get_recent_events(days: RecentEventDays = 3) -> dict[str, Any]:
     return await _get("/events/recent", {"days": days})
 
 
+@mcp.tool()
+async def get_incomplete_quests() -> dict[str, Any]:
+    """获取玩家当前**还没完成**的任务列表，等同于游戏里的任务日志。
+
+    包含两类，都放在同一个数组里、按紧迫程度排序（有期限的在前，`daysLeft` 小的更靠前）：
+
+    - 普通任务：`type` 是 `basic` / `item_delivery` / `monster` / `fishing` / `socialize` 等，
+      `questType` 给出游戏内部的类型常量
+    - 特别订单：`type` 为 `special_order`，`isSpecialOrder` 为 true，并带 `requester`（委托人）
+
+    每个任务的字段：
+
+    - `id` / `title` / `description`：任务 ID、标题、说明
+    - `objectives`：目标清单。`text` 已经是游戏翻译好的整句；特别订单还带 `currentCount` /
+      `requiredCount`（进度，如 3/10）和 `isComplete`，普通任务的进度已经写进 `text` 里，所以这两个字段为 null
+    - `isTimed` / `daysLeft`：是否有期限、还剩几天。`isTimed` 为 false 时 `daysLeft` 无意义
+    - `isDailyQuest`：true 表示是公告板（布告栏）任务，两天内过期
+    - `canBeCancelled`：能否在任务日志里取消
+    - `moneyReward` / `rewardDescription`：完成后的金钱奖励与非金钱奖励说明
+
+    注意：**已经达成目标、但还没领奖的任务不会出现在这里**（游戏已把它标记为完成），
+    它们会一直留在任务日志里直到玩家领奖。
+    """
+    return await _get("/quests/incomplete")
+
+
 def start() -> None:
     """Run the MCP server over stdio (the transport MCP clients spawn)."""
     mcp.run(transport="stdio")

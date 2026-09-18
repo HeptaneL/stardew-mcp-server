@@ -147,6 +147,7 @@ claude mcp add stardew --transport stdio \
 | `get_current_state` | — | 玩家当前状态快照 |
 | `get_recent_activity` | — | 最近 3 个游戏日的行为记录 |
 | `get_recent_events` | `days: int = 3` | 今天前后各 `days` 天的日历事件 |
+| `get_incomplete_quests` | — | 当前未完成的任务（普通任务 + 特别订单） |
 
 - `season` 取值：`spring` | `summer` | `fall` | `winter`
 - `day` 取值：`1` – `28`
@@ -160,6 +161,8 @@ claude mcp add stardew --transport stdio \
 `get_gift_tastes` 的每一档里，条目可能是**具体物品**（`kind: "item"`）、**整个分类**（`kind: "category"`，如 `-4` = Fish）或**上下文标签**（`kind: "context_tag"`，如 `category_fish`）——游戏把这三类混在同一个字段里，三者匹配方式不同，所以分开标注。
 
 `suggest_gift` 返回的 `suggestions` 按预计好感收益排序，`avoid` 列出背包里对方讨厌的东西；`limits` 说明今天还能不能送（每日一次、每周两次、生日 ×8、配偶减半，`blockedReason` 给出拒收原因）。详见 [HelloStardew 的 API 文档](https://github.com/HeptaneL/HelloStardew#get-giftsuggest)。
+
+`get_incomplete_quests` 把普通任务和特别订单合并成一个数组，按紧迫程度排序（有期限的在前，`daysLeft` 小的更靠前）。普通任务的 `objectives[].text` 里已经含进度（如 `0/5`），特别订单则另外给出 `currentCount` / `requiredCount` 和 `isComplete`。**已完成但尚未领奖**的任务不算未完成，不在返回结果里。详见 [HelloStardew 的 API 文档](https://github.com/HeptaneL/HelloStardew#get-questsincomplete)。
 
 `get_npc_location` 的 `current` 是**实际**位置，`currentTarget` / `nextTarget` 是**计划**（来自游戏已解析好的 `NPC.Schedule`）。两者冲突时以 `current` 为准：节日 / 事件会临时覆盖日程，`current.isInEvent` 会告诉你是否处于这种情况。日程的 `time` 是**出发时间**而非到达时间。详见 [HelloStardew 的 API 文档](https://github.com/HeptaneL/HelloStardew#get-npclocation)。
 
@@ -188,6 +191,7 @@ claude mcp add stardew --transport stdio \
 | `get_current_state` | `GET /state` |
 | `get_recent_activity` | `GET /activity/recent` |
 | `get_recent_events` | `GET /events/recent?days={days}` |
+| `get_incomplete_quests` | `GET /quests/incomplete` |
 
 ## 错误处理
 

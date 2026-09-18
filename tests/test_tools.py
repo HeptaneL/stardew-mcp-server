@@ -62,6 +62,7 @@ async def test_every_tool_is_registered():
         "get_current_state",
         "get_recent_activity",
         "get_recent_events",
+        "get_incomplete_quests",
     }
 
 
@@ -71,6 +72,7 @@ async def test_every_tool_is_registered():
         (lambda: server.get_household(), "/household"),
         (lambda: server.get_current_state(), "/state"),
         (lambda: server.get_recent_activity(), "/activity/recent"),
+        (lambda: server.get_incomplete_quests(), "/quests/incomplete"),
     ],
 )
 async def test_argument_less_tools_hit_their_endpoint(call, path):
