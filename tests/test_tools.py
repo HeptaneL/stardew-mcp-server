@@ -56,6 +56,9 @@ async def test_every_tool_is_registered():
         "get_month_calendar",
         "get_household",
         "get_relationship",
+        "get_npc_location",
+        "get_gift_tastes",
+        "suggest_gift",
         "get_current_state",
         "get_recent_activity",
         "get_recent_events",
@@ -102,6 +105,66 @@ async def test_get_relationship_with_npc_passes_it_through():
     assert result["data"]["npc"] == "Haley"
     assert requests[0].url.path == "/relationship"
     assert requests[0].url.params["npc"] == "Haley"
+
+
+async def test_get_npc_location_passes_the_name_through():
+    requests: list[httpx.Request] = []
+    stub(requests, envelope({"npc": "Haley", "current": {"location": "Town"}}))
+
+    result = await server.get_npc_location("Haley")
+
+    assert result["data"]["npc"] == "Haley"
+    assert requests[0].url.path == "/npc/location"
+    assert requests[0].url.params["npc"] == "Haley"
+
+
+async def test_get_npc_location_requires_a_name():
+    tools = await server.mcp.list_tools()
+    schema = next(tool for tool in tools if tool.name == "get_npc_location").input_schema
+
+    assert schema["required"] == ["npc"]
+
+
+async def test_get_gift_tastes_without_npc_asks_for_the_whole_catalog():
+    requests: list[httpx.Request] = []
+    stub(requests, envelope({"universal": {}, "villagers": []}))
+
+    result = await server.get_gift_tastes()
+
+    assert result["ok"] is True
+    assert requests[0].url.path == "/gift/tastes"
+    assert requests[0].url.query == b""
+
+
+async def test_get_gift_tastes_with_npc_passes_it_through():
+    requests: list[httpx.Request] = []
+    stub(requests, envelope({"npc": "Abigail", "tastes": {}}))
+
+    result = await server.get_gift_tastes("Abigail")
+
+    assert result["data"]["npc"] == "Abigail"
+    assert requests[0].url.path == "/gift/tastes"
+    assert requests[0].url.params["npc"] == "Abigail"
+
+
+async def test_suggest_gift_defaults_to_ten_suggestions():
+    requests: list[httpx.Request] = []
+    stub(requests, envelope({"npc": "Abigail", "suggestions": []}))
+
+    await server.suggest_gift("Abigail")
+
+    assert requests[0].url.path == "/gift/suggest"
+    assert requests[0].url.params["npc"] == "Abigail"
+    assert requests[0].url.params["limit"] == "10"
+
+
+async def test_suggest_gift_forwards_the_limit():
+    requests: list[httpx.Request] = []
+    stub(requests, envelope({"npc": "Abigail", "suggestions": []}))
+
+    await server.suggest_gift("Abigail", 5)
+
+    assert requests[0].url.params["limit"] == "5"
 
 
 async def test_get_recent_events_defaults_to_three_days():
@@ -163,3 +226,18 @@ async def test_recent_event_days_schema_bounds():
         "title": "Days",
         "type": "integer",
     }
+
+
+async def test_suggest_gift_limit_schema_bounds():
+    tools = await server.mcp.list_tools()
+    schema = next(tool for tool in tools if tool.name == "suggest_gift").input_schema
+
+    assert schema["properties"]["limit"] == {
+        "default": 10,
+        "description": "How many gift suggestions to return, best first",
+        "maximum": 50,
+        "minimum": 1,
+        "title": "Limit",
+        "type": "integer",
+    }
+    assert schema["required"] == ["npc"]

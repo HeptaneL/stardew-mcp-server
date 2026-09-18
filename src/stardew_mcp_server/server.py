@@ -32,6 +32,10 @@ NpcName = Annotated[
     str,
     Field(description="Villager name. Internal or display name both work, case-insensitively."),
 ]
+GiftLimit = Annotated[
+    int,
+    Field(ge=1, le=50, description="How many gift suggestions to return, best first"),
+]
 
 mcp = MCPServer("stardew_valley")
 
@@ -184,6 +188,55 @@ async def get_relationship(npc: NpcName | None = None) -> dict[str, Any]:
     """
     params = {"npc": npc} if npc else None
     return await _get("/relationship", params=params)
+
+
+@mcp.tool()
+async def get_npc_location(npc: NpcName) -> dict[str, Any]:
+    """查询某个村民现在在哪、接下来会去哪。
+
+    数据有两块：``NPC.Schedule``（游戏已按季节 / 星期 / 天气 / 婚后状态解析好的当天计划）和 NPC 的实时坐标。
+    两者不一致时以 ``current`` 为准，``currentTarget`` 只是计划。
+
+    - ``current``：实际所在的图和格子；``isTravelling`` 为 true 时 ``travellingTo`` 是这一段的终点
+    - ``currentTarget``：现在应该生效的日程。为空表示今天的日程还没开始（通常还在家）
+    - ``nextTarget``：下一个日程点，回答“待会儿去哪”
+    - ``home``：村民自己的家，游戏按 ``Data/Characters`` 的 Home 条件解析
+    - ``isInEvent``：节日 / 事件会临时覆盖日程，此时计划不可信
+    - 日程的 key 是**出发时间**，走路还要几分钟，所以别把 ``time`` 当成到达时间
+
+    Args:
+        npc: 村民名字，如 ``Haley``。必须是当前已出现在世界里的村民。
+    """
+    return await _get("/npc/location", {"npc": npc})
+
+
+@mcp.tool()
+async def get_gift_tastes(npc: NpcName | None = None) -> dict[str, Any]:
+    """查询村民对礼物的喜好，来源是游戏的 Data/NPCGiftTastes。
+
+    每档的条目有三种：具体物品（给出物品名与 ID）、分类（如 ``Fish``，对应 ``-4`` 这类负数分类）、
+    上下文标签（如 ``category_fish``，表示该标签下的一整类物品）。
+
+    Args:
+        npc: 村民名字，如 ``Abigail``。不传则返回全部村民，外加所有村民共用的 universal 列表。
+    """
+    params = {"npc": npc} if npc else None
+    return await _get("/gift/tastes", params=params)
+
+
+@mcp.tool()
+async def suggest_gift(npc: NpcName, limit: GiftLimit = 10) -> dict[str, Any]:
+    """推荐现在该送给某个村民什么礼物。
+
+    会扫描玩家背包和世界上所有的箱子，用游戏自己的 getGiftTasteForThisItem 给每件物品打分，
+    按预计好感收益排序，并说明今天还能不能送（每日一次、每周两次、生日 ×8、配偶减半）。
+    同时返回 avoid 列表，列出背包里对方讨厌的东西，避免送错。
+
+    Args:
+        npc: 村民名字，如 ``Abigail``。
+        limit: 最多返回多少条推荐，范围 1-50，默认 10。
+    """
+    return await _get("/gift/suggest", {"npc": npc, "limit": limit})
 
 
 @mcp.tool()

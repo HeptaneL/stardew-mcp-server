@@ -40,7 +40,17 @@ Stardew Valley 存档
 - 查询当前状态快照：时间、地点、金钱、体力、生命、天气、六项技能等级、背包内容
 - 查询最近 3 个游戏日的行为记录：对话、送礼、钓鱼、出货、升级、消费等
 
-> 后四项需要 **HelloStardew 1.3.0 或更高版本**。旧版 mod 上调用会返回 `404 not_found`。
+**村民位置**
+
+- 查询某个村民现在在哪（实际所在图与格子）、是否在赶路、接下来要去哪
+- 位置来自游戏自己的 `NPC.Schedule`：季节 / 星期 / 天气 / 婚后条件已由游戏判定完毕，不需要重复判断
+
+**礼物**
+
+- 查询村民的礼物喜好（最爱 / 喜欢 / 不喜欢 / 最恨 / 普通），直接来自 `Data/NPCGiftTastes`
+- 结合玩家背包与世界上所有箱子，推荐现在该送什么，并给出预计好感收益与今日/本周额度
+
+> **玩家与住所**后四项需要 **HelloStardew 1.3.0 或更高版本**；**村民位置**与**礼物**需要 **HelloStardew 1.4.0 或更高版本**。旧版 mod 上调用会返回 `404 not_found`。
 
 ## 环境要求
 
@@ -131,6 +141,9 @@ claude mcp add stardew --transport stdio \
 | `get_month_calendar` | `season: optional` | 整季日历，缺省为当前季节 |
 | `get_household` | — | 农夫 / 农场 / 配偶 / 宠物 / 孩子的名字 |
 | `get_relationship` | `npc: optional` | 与村民的关系；不传 `npc` 则返回所有已认识的村民 |
+| `get_npc_location` | `npc` | 村民现在在哪、正在去哪、接下来去哪 |
+| `get_gift_tastes` | `npc: optional` | 村民的礼物喜好；不传 `npc` 则返回全部村民 + 通用规则 |
+| `suggest_gift` | `npc`, `limit: int = 10` | 结合背包与箱子推荐送什么，附预计好感收益与送礼额度 |
 | `get_current_state` | — | 玩家当前状态快照 |
 | `get_recent_activity` | — | 最近 3 个游戏日的行为记录 |
 | `get_recent_events` | `days: int = 3` | 今天前后各 `days` 天的日历事件 |
@@ -139,8 +152,16 @@ claude mcp add stardew --transport stdio \
 - `day` 取值：`1` – `28`
 - `npc` 取值：村民名字，内部名或显示名均可，大小写不敏感（如 `Haley`）
 - `days` 取值：`0` – `28`，`0` 表示只看今天
+- `limit` 取值：`1` – `50`，默认 `10`
 
 > `get_relationship` 的返回形态取决于是否传了 `npc`：传了返回**对象**，没传返回**数组**（按好感度降序）。
+> `get_gift_tastes` 同理：传了返回单个村民的对象，没传返回 `{ universal, villagers }`。
+
+`get_gift_tastes` 的每一档里，条目可能是**具体物品**（`kind: "item"`）、**整个分类**（`kind: "category"`，如 `-4` = Fish）或**上下文标签**（`kind: "context_tag"`，如 `category_fish`）——游戏把这三类混在同一个字段里，三者匹配方式不同，所以分开标注。
+
+`suggest_gift` 返回的 `suggestions` 按预计好感收益排序，`avoid` 列出背包里对方讨厌的东西；`limits` 说明今天还能不能送（每日一次、每周两次、生日 ×8、配偶减半，`blockedReason` 给出拒收原因）。详见 [HelloStardew 的 API 文档](https://github.com/HeptaneL/HelloStardew#get-giftsuggest)。
+
+`get_npc_location` 的 `current` 是**实际**位置，`currentTarget` / `nextTarget` 是**计划**（来自游戏已解析好的 `NPC.Schedule`）。两者冲突时以 `current` 为准：节日 / 事件会临时覆盖日程，`current.isInEvent` 会告诉你是否处于这种情况。日程的 `time` 是**出发时间**而非到达时间。详见 [HelloStardew 的 API 文档](https://github.com/HeptaneL/HelloStardew#get-npclocation)。
 
 ## mod 的 HTTP API
 
@@ -161,6 +182,9 @@ claude mcp add stardew --transport stdio \
 | `get_month_calendar` | `GET /calendar` 或 `GET /calendar?season={season}` |
 | `get_household` | `GET /household` |
 | `get_relationship` | `GET /relationship` 或 `GET /relationship?npc={npc}` |
+| `get_npc_location` | `GET /npc/location?npc={npc}` |
+| `get_gift_tastes` | `GET /gift/tastes` 或 `GET /gift/tastes?npc={npc}` |
+| `suggest_gift` | `GET /gift/suggest?npc={npc}&limit={limit}` |
 | `get_current_state` | `GET /state` |
 | `get_recent_activity` | `GET /activity/recent` |
 | `get_recent_events` | `GET /events/recent?days={days}` |
@@ -187,8 +211,10 @@ claude mcp add stardew --transport stdio \
 
 - **调用工具报 `connection_error`**：确认游戏正在运行、HelloStardew mod 已加载，且 `STARDEW_API_URL` 指向的端口（默认 `8788`）可访问。
 - **返回 503 / “存档尚未加载”**：进入任意存档后再调用。
-- **`get_household` 等工具报 `404 not_found`**：mod 版本过旧，升级到 HelloStardew 1.3.0+ 即可。
+- **`get_household` 等工具报 `404 not_found`**：mod 版本过旧，升级到 HelloStardew 1.3.0+；`get_npc_location` / `get_gift_tastes` / `suggest_gift` 需要 1.4.0+。
 - **`get_relationship` 报 `unknown_npc`**：玩家还没在游戏里认识这个村民，`friendshipData` 里没有对应条目。
+- **`get_gift_tastes` / `suggest_gift` / `get_npc_location` 报 `unknown_npc`**：这个村民名字不存在，检查拼写。
+- **`suggest_gift` / `get_npc_location` 报 `npc_unavailable`**：该村民存在于游戏数据里但当前不在世界中（例如第一年的 Kent）。见不到人就读不到日程，也送不了礼。
 - **不要向 stdout 打印内容**：stdio MCP 服务器的 stdout 是 JSON-RPC 通道，任何多余输出都会破坏协议握手。控制台脚本 `stardew-mcp-server` 已保证这一点。
 
 ## 开发
