@@ -259,3 +259,5 @@ uv run pytest                    # 运行测试（tests/ 目录）
 ## License
 
 见仓库中的许可文件（如有）。
+
+[![M8ven Score](https://m8ven.ai/badge/mcp/heptanel/stardew-mcp-server)](https://m8ven.ai/mcp/heptanel/stardew-mcp-server)
