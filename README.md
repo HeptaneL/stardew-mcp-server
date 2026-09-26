@@ -69,6 +69,24 @@ uv sync
 
 `uv sync` 会根据 `pyproject.toml` / `uv.lock` 创建 `.venv` 并安装 `mcp`、`httpx`。
 
+## HTTP 模式
+
+除了 stdio，也可以把 server 作为 Streamable HTTP 服务启动，供其他容器或远程客户端连接：
+
+```bash
+MCP_TRANSPORT=streamable-http \
+MCP_HOST=0.0.0.0 \
+MCP_PORT=8001 \
+MCP_HTTP_PATH=/mcp \
+uv run stardew-mcp-server
+```
+
+客户端（如 stardew-agent）用 `transport=http` 连接 `http://<host>:8001/mcp`。
+
+> 若客户端跑在 Docker 里、HelloStardew 跑在宿主机，HelloStardew 的 `BindAddress`
+> 需设成 `+`（`HttpListener` 通配符），否则容器通过 `host.docker.internal` 访问时
+> `Host` 头不匹配，会得到 404。
+
 ## 在 Claude Code 中接入
 
 本仓库使用 stdio 传输，由 Claude Code 启动进程并通过标准输入输出通信。
@@ -127,6 +145,10 @@ claude mcp add stardew --transport stdio \
 | --- | --- | --- |
 | `STARDEW_API_URL` | `http://127.0.0.1:8788` | mod HTTP 服务的地址，每次调用时读取，末尾 `/` 会被去掉 |
 | `STARDEW_API_TIMEOUT` | `5.0` | 单次 HTTP 请求超时（秒）；未设置或非法时回退到默认值 |
+| `MCP_TRANSPORT` | `stdio` | 传输方式：`stdio` 或 `streamable-http` / `http` |
+| `MCP_HOST` | `127.0.0.1` | HTTP 模式下监听的地址 |
+| `MCP_PORT` | `8001` | HTTP 模式下监听的端口 |
+| `MCP_HTTP_PATH` | `/mcp` | HTTP 模式下的 Streamable HTTP 路径 |
 
 ## 可用工具
 

@@ -288,8 +288,26 @@ async def get_incomplete_quests() -> dict[str, Any]:
 
 
 def start() -> None:
-    """Run the MCP server over stdio (the transport MCP clients spawn)."""
-    mcp.run(transport="stdio")
+    """Run the MCP server over stdio or Streamable HTTP.
+
+    The transport is chosen with ``MCP_TRANSPORT``: ``stdio`` (the default,
+    which MCP clients spawn) or ``streamable-http`` / ``http``. HTTP mode also
+    reads ``MCP_HOST`` (default 127.0.0.1), ``MCP_PORT`` (default 8001) and
+    ``MCP_HTTP_PATH`` (default /mcp).
+    """
+    transport = os.environ.get("MCP_TRANSPORT", "stdio").strip().lower()
+
+    if transport in {"streamable-http", "http"}:
+        mcp.run(
+            transport="streamable-http",
+            host=os.environ.get("MCP_HOST", "127.0.0.1"),
+            port=int(os.environ.get("MCP_PORT", "8001")),
+            streamable_http_path=os.environ.get("MCP_HTTP_PATH", "/mcp"),
+        )
+    elif transport == "stdio":
+        mcp.run(transport="stdio")
+    else:
+        raise ValueError(f"Unknown MCP_TRANSPORT: {transport!r}")
 
 if __name__ == "__main__":
     start()
